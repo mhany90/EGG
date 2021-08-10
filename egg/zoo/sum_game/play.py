@@ -58,6 +58,12 @@ def get_params(params):
         default=1e-1,
         help="Reinforce entropy regularization coefficient for Sender, only relevant in Reinforce (rf) mode (default: 1e-1)",
     )
+    parser.add_argument(
+        "--loss_type",
+        type=str,
+        default="ce",
+        help="Selects whether Cross-entropy or Mean Squared Error loss is used for training {ce, mse} (default: ce)",
+    )
     # arguments concerning the agent architectures
     parser.add_argument(
         "--sender_cell",
@@ -132,7 +138,10 @@ def main(params):
             .detach()
         )
         acc = (torch.sum(correct_samples, dim=-1) == 1).float()
-        loss = F.cross_entropy(receiver_output, labels, reduction="none")
+        if opts.loss_type == 'ce':
+            loss = F.cross_entropy(receiver_output, labels, reduction="none")
+        else:
+            loss = F.mse_loss(receiver_guesses.float(), labels.float(), reduction="none")
         loss = loss.view(batch_size, -1).mean(dim=1)
         return loss, {"acc": acc}
 
