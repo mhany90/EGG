@@ -1,0 +1,22 @@
+{
+  "vocab_size": [10, 15, 20, 30, 40, 50, 100, 200],
+  "random_seed": [0, 1, 2, 3],
+  "max_len": [1, 5, 10, 15],
+  "train_data":["egg/zoo/sum_game/data_generation_scripts/train_file_range-100_examples-200000_holdout-True.txt"],
+  "validation_data":["egg/zoo/sum_game/data_generation_scripts/dev_file_range-100_examples-1000_holdout-True.txt"],
+  "n_range":[100],
+  "n_epochs":[500],
+  "batch_size":[128],
+  "validation_batch_size":[1000],
+  "sender_hidden":[64],
+  "receiver_hidden":[128],
+  "sender_embedding":[10],
+  "receiver_embedding":[20],
+  "receiver_cell":["gru"],
+  "sender_cell":["gru"],
+  "sender_entropy_coeff":[1],
+  "lr":[0.1]
+}
+
+
+
