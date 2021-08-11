@@ -63,6 +63,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--partition", type=str, default="devlab", help="Partition requested"
     )
+    parser.add_argument(
+        "--gres", type=str, default="titanrtx", help="gpu type requested"
+    )
     parser.add_argument("--time", type=int, default=4320, help="Job timeout")
     parser.add_argument(
         "--checkpoint_freq",
@@ -101,6 +104,7 @@ if __name__ == "__main__":
         default=128,
         help="Max number of parallel jobs" "executed from the search",
     )
+
 
     args = parser.parse_args()
 
@@ -142,6 +146,7 @@ if __name__ == "__main__":
         nodes=args.nodes,
         tasks_per_node=args.tasks,
         mem_gb=args.mem_gb,
+        gres=args.gres
     )
 
     if args.array:
