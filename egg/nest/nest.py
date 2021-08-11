@@ -64,7 +64,7 @@ if __name__ == "__main__":
         "--partition", type=str, default="devlab", help="Partition requested"
     )
     parser.add_argument(
-        "--gres", type=str, default="titanrtx", help="gpu type requested"
+        "--gres", type=str, default=None, help="gpu type requested"
     )
     parser.add_argument("--time", type=int, default=4320, help="Job timeout")
     parser.add_argument(
