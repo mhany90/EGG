@@ -8,12 +8,6 @@ import egg.core as core
 def get_params(params):
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--no_train_examples",
-        type=int,
-        default=10000,
-        help="Number of train examples to generate",
-    )
-    parser.add_argument(
         "--no_dev_examples",
         type=int,
         default=1000,
@@ -48,23 +42,27 @@ def main(params):
     train_examples, dev_examples, test_examples = [], [], []
     dev_set_keys, test_set_keys = [], []
 
+    # generate all combinations of two lists of range(n_range)
+    comb_array = np.array(np.meshgrid(list(range(opts.input_range)), list(range(opts.input_range)))).T.reshape(-1, 2).tolist()
+
+    # shuffle list of examples
+    random.shuffle(comb_array)
+
     # start with generating test and dev examples to enable holding them out
     # test set
-    for _ in range(opts.no_test_examples):
-        # uniformly sample two integers from range
-        first_int = random.randint(0, opts.input_range - 1)
-        second_int = random.randint(0, opts.input_range - 1)
+    for example in comb_array[:opts.no_test_examples]:
+        first_int = example[0]
+        second_int = example[1]
         # compute sum
         summation = first_int + second_int
-        # append inputs and sum to list of all examples
+        # append inputs and sum to list of test examples
         test_examples.append([first_int, second_int, summation])
         # append pair combination to list of test keys
         test_set_keys.append(str(first_int) + '-' + str(second_int))
     # dev set
-    for _ in range(opts.no_dev_examples):
-        # uniformly sample two integers from range
-        first_int = random.randint(0, opts.input_range - 1)
-        second_int = random.randint(0, opts.input_range - 1)
+    for example in comb_array[opts.no_test_examples: opts.no_test_examples + opts.no_dev_examples]:
+        first_int = example[0]
+        second_int = example[1]
         # compute sum
         summation = first_int + second_int
         # append inputs and sum to list of all examples
@@ -72,34 +70,20 @@ def main(params):
         # append pair combination to list of test keys
         dev_set_keys.append(str(first_int) + '-' + str(second_int))
     # train set
-    # holdout pair combinations from trainset
-    if opts.holdout_pairs:
-        holdout_keys = set(test_set_keys + dev_set_keys)
-        for _ in range(opts.no_train_examples):
-            # uniformly sample two integers from range
-            first_int = random.randint(0, opts.input_range - 1)
-            second_int = random.randint(0, opts.input_range - 1)
-            #check if pair in dev or test sets (in either order)
-            order_1 = str(first_int) + '-' + str(second_int)
-            order_2 = str(second_int) + '-' + str(first_int)
-            if order_1 not in holdout_keys and order_2 not in holdout_keys:
-                # compute sum
-                summation = first_int + second_int
-                # append inputs and sum to list of all examples
-                train_examples.append([first_int, second_int, summation])
-    else:
-        for _ in range(opts.no_train_examples):
-            # uniformly sample two integers from range
-            first_int = random.randint(0, opts.input_range - 1)
-            second_int = random.randint(0, opts.input_range - 1)
-            summation = first_int + second_int
-            # append inputs and sum to list of all examples
-            train_examples.append([first_int, second_int, summation])
+    for example in comb_array[opts.no_test_examples + opts.no_dev_examples:]:
+        first_int = example[0]
+        second_int = example[1]
+        # compute sum
+        summation = first_int + second_int
+        # append inputs and sum to list of all examples
+        train_examples.append([first_int, second_int, summation])
+
+    print("test set len: {}, dev set len: {}, train set len: {}".format(len(test_examples), len(dev_examples), len(train_examples)))
 
     # prep write out files
-    train_file = "train_file_range-{}_examples-{}_holdout-{}.txt".format(str(opts.input_range), str(opts.no_train_examples), str(opts.holdout_pairs))
-    dev_file = "dev_file_range-{}_examples-{}_holdout-{}.txt".format(str(opts.input_range), str(opts.no_dev_examples), str(opts.holdout_pairs))
-    test_file = "test_file_range-{}_examples-{}_holdout-{}.txt".format(str(opts.input_range), str(opts.no_test_examples), str(opts.holdout_pairs))
+    train_file = "train_file_range-{}_examples-{}.txt".format(str(opts.input_range), str(len(train_examples)))
+    dev_file = "dev_file_range-{}_examples-{}.txt".format(str(opts.input_range), str(opts.no_dev_examples))
+    test_file = "test_file_range-{}_examples-{}.txt".format(str(opts.input_range), str(opts.no_test_examples))
 
     # write train file
     out_train = open(train_file, 'w')
