@@ -108,6 +108,9 @@ def get_params(params):
         action="store_true",
         help="If this flag is passed, at the end of training the script prints the input validation data, the corresponding messages produced by the Sender, and the output probabilities produced by the Receiver (default: do not print)",
     )
+    parser.add_argument(
+        "--checkpoint_path", type=str, default=None, help="Path for saving checkpoint"
+    )
     args = core.init(parser, params)
     return args
 
@@ -231,10 +234,12 @@ def main(params):
         )
         callbacks = []
 
+
     # we are almost ready to train: we define here an optimizer calling standard pytorch functionality
     optimizer = core.build_optimizer(game.parameters())
     # in the following statement, we finally instantiate the trainer object with all the components we defined (the game, the optimizer, the data
     # and the callbacks)
+    print(opts.checkpoint_path, "opts.checkpoint_path")
     if opts.print_validation_events == True:
         # we add a callback that will print loss and accuracy after each training and validation pass (see ConsoleLogger in callbacks.py in core directory)
         # if requested by the user, we will also print a detailed log of the validation pass after full training: look at PrintValidationEvents in
@@ -248,6 +253,7 @@ def main(params):
             + [
                 core.ConsoleLogger(print_train_loss=True, as_json=True),
                 core.PrintValidationEvents(n_epochs=opts.n_epochs),
+                core.CheckpointSaver(checkpoint_path=opts.checkpoint_path, checkpoint_freq=1, max_checkpoints=1)
             ],
         )
     else:
