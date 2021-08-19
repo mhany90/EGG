@@ -96,7 +96,16 @@ def main(params):
         train_summary_stats = get_summary_stats(train_results_tuple)
         dev_summary_stats = get_summary_stats(dev_results_tuple)
         # calculate mean and store, only include succesful run acc. to max_acc of train > 0.10
-        if train_summary_stats['max_acc'] > 0.10 and opts.exclude_failed_runs:
+        if opts.exclude_failed_runs:
+            if train_summary_stats['max_acc'] > 0.10:
+                df = pd.DataFrame([train_results_dict[vocab + '-' + maxlen + '-' + entropy_coef], train_summary_stats])
+                train_results_dict_of_means = dict(df.mean())
+                train_results_dict[vocab + '-' + maxlen + '-' + entropy_coef] = train_results_dict_of_means
+                # same for dev
+                df = pd.DataFrame([dev_results_dict[vocab + '-' + maxlen + '-' + entropy_coef], dev_summary_stats])
+                dev_results_dict_of_means = dict(df.mean())
+                dev_results_dict[vocab + '-' + maxlen + '-' + entropy_coef] = dev_results_dict_of_means
+        else:
             df = pd.DataFrame([train_results_dict[vocab + '-' + maxlen + '-' + entropy_coef], train_summary_stats])
             train_results_dict_of_means = dict(df.mean())
             train_results_dict[vocab + '-' + maxlen + '-' + entropy_coef] = train_results_dict_of_means
