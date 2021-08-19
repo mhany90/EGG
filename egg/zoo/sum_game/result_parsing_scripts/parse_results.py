@@ -17,6 +17,12 @@ def get_params(params):
         type=str,
         help="Directory with results",
     )
+    parser.add_argument(
+        "--exclude_failed_runs",
+        default=False,
+        action="store_true",
+        help="Exclude failed runs from result summary",
+    )
     args = core.init(parser, params)
     return args
 
@@ -90,7 +96,7 @@ def main(params):
         train_summary_stats = get_summary_stats(train_results_tuple)
         dev_summary_stats = get_summary_stats(dev_results_tuple)
         # calculate mean and store, only include succesful run acc. to max_acc of train > 0.10
-        if train_summary_stats['max_acc'] > 0.10:
+        if train_summary_stats['max_acc'] > 0.10 and opts.exclude_failed_runs:
             df = pd.DataFrame([train_results_dict[vocab + '-' + maxlen + '-' + entropy_coef], train_summary_stats])
             train_results_dict_of_means = dict(df.mean())
             train_results_dict[vocab + '-' + maxlen + '-' + entropy_coef] = train_results_dict_of_means
