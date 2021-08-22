@@ -119,8 +119,12 @@ def main(params):
     dev_results_dict = OrderedDict(sorted(dev_results_dict.items(), key=lambda x: x[1]['max_acc'], reverse=True))
 
     # prep write out files
-    train_file = open(join(opts.results_dir,"train_summary_stats.txt"), 'w')
-    dev_file = open(join(opts.results_dir,"dev_summary_stats.txt"), 'w')
+    if opts.exclude_failed_runs:
+        train_file = open(join(opts.results_dir,"train_summary_stats_no_failed.txt"), 'w')
+        dev_file = open(join(opts.results_dir,"dev_summary_stats_no_failed.txt"), 'w')
+    else:
+        train_file = open(join(opts.results_dir, "train_summary_stats.txt"), 'w')
+        dev_file = open(join(opts.results_dir, "dev_summary_stats.txt"), 'w')
 
     # write
     json.dump(train_results_dict, train_file, indent=6)
