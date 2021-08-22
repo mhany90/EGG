@@ -5,7 +5,6 @@
 
 import argparse
 
-import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
@@ -14,6 +13,9 @@ import egg.core as core
 from egg.core import Callback, Interaction, PrintValidationEvents, TopographicSimilarity, Disent
 from egg.zoo.sum_game.architectures import SumReceiver, Sender
 from egg.zoo.sum_game.data_readers import AttValSumDataset
+from egg.zoo.language_bottleneck.intervention import entropy, mutual_info
+
+#from scipy.stats import entropy
 
 
 # the following section specifies parameters that are specific to our games: we will also inherit the
@@ -239,10 +241,13 @@ def main(params):
     # topsim
     input_msg_topsim = round(TopographicSimilarity.compute_topsim(interactions.sender_input, interactions.message, 'hamming', 'edit'), 6)
     print("input_msg_topsim: ", input_msg_topsim)
-    receiver_output_topsim = round(TopographicSimilarity.compute_topsim(interactions.receiver_output, interactions.message, 'hamming', 'edit'), 6)
-    print("receiver_output_topsim: ",receiver_output_topsim)
+    #receiver_output_topsim = round(TopographicSimilarity.compute_topsim(interactions.receiver_output, interactions.message, 'hamming', 'edit'), 6)
+    #print("receiver_output_topsim: ",receiver_output_topsim)
     label_msg_topsim = round(TopographicSimilarity.compute_topsim(F.one_hot(interactions.labels), interactions.message, 'hamming', 'edit'), 6)
     print("label_msg_topsim: ", label_msg_topsim)
+    #entropy
+    e = entropy(interactions.message)
+    print("H(m): ", e)
 
 
 if __name__ == "__main__":
