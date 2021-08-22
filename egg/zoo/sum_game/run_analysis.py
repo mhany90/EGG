@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 import egg.core as core
-from egg.core import Callback, Interaction, PrintValidationEvents
+from egg.core import Callback, Interaction, PrintValidationEvents, TopographicSimilarity, Disent
 from egg.zoo.sum_game.architectures import SumReceiver, Sender
 from egg.zoo.sum_game.data_readers import AttValSumDataset
 
@@ -22,10 +22,7 @@ def get_params(params):
     parser = argparse.ArgumentParser()
     # arguments concerning the input data and how they are processed
     parser.add_argument(
-        "--train_data", type=str, default=None, help="Path to the train data"
-    )
-    parser.add_argument(
-        "--validation_data", type=str, default=None, help="Path to the validation data"
+        "--data", type=str, default=None, help="Path to the data to run inference on"
     )
     parser.add_argument(
         "--n_range",
@@ -36,8 +33,8 @@ def get_params(params):
     parser.add_argument(
         "--validation_batch_size",
         type=int,
-        default=0,
-        help="Batch size when processing validation data, whereas training data batch_size is controlled by batch_size (default: same as training data batch size)",
+        default=64,
+        help="Batch size when running inference",
     )
     # arguments concerning the training method
     parser.add_argument(
@@ -80,36 +77,29 @@ def get_params(params):
     parser.add_argument(
         "--sender_hidden",
         type=int,
-        default=10,
+        default=128,
         help="Size of the hidden layer of Sender (default: 10)",
     )
     parser.add_argument(
         "--receiver_hidden",
         type=int,
-        default=10,
+        default=128,
         help="Size of the hidden layer of Receiver (default: 10)",
     )
     parser.add_argument(
         "--sender_embedding",
         type=int,
-        default=10,
+        default=32,
         help="Output dimensionality of the layer that embeds symbols produced at previous step in Sender (default: 10)",
     )
     parser.add_argument(
         "--receiver_embedding",
         type=int,
-        default=10,
+        default=32,
         help="Output dimensionality of the layer that embeds the message symbols for Receiver (default: 10)",
     )
-    # arguments controlling the script output
     parser.add_argument(
-        "--print_validation_events",
-        default=False,
-        action="store_true",
-        help="If this flag is passed, at the end of training the script prints the input validation data, the corresponding messages produced by the Sender, and the output probabilities produced by the Receiver (default: do not print)",
-    )
-    parser.add_argument(
-        "--checkpoint_path", type=str, default=None, help="Path for saving checkpoint"
+        "--checkpoint_path", type=str, default=None, help="Path for loading model checkpoint"
     )
     args = core.init(parser, params)
     return args
@@ -117,8 +107,6 @@ def get_params(params):
 
 def main(params):
     opts = get_params(params)
-    if opts.validation_batch_size == 0:
-        opts.validation_batch_size = opts.batch_size
     print(opts, flush=True)
 
     # define loss, input data and architecture of the Receiver
@@ -147,26 +135,17 @@ def main(params):
             loss = F.mse_loss(receiver_guesses.float(), labels.float(), reduction="none")
         loss = loss.view(batch_size, -1).mean(dim=1)
         return loss, {"acc": acc}
-
     # again, see data_readers.py in this directory for the AttValRecoDataset data reading class
-    train_loader = DataLoader(
+    data_loader = DataLoader(
         AttValSumDataset(
-            path=opts.train_data,
-            n_range=opts.n_range,
-        ),
-        batch_size=opts.batch_size,
-        shuffle=True,
-        num_workers=1,
-    )
-    test_loader = DataLoader(
-        AttValSumDataset(
-            path=opts.validation_data,
+            path=opts.data,
             n_range=opts.n_range,
         ),
         batch_size=opts.validation_batch_size,
-        shuffle=False,
+        shuffle=True,
         num_workers=1,
     )
+
     # the number of features for the Receiver (input) and the Sender (output) is given by 2*n_range
     n_features = 2 * opts.n_range
 
@@ -239,35 +218,31 @@ def main(params):
     optimizer = core.build_optimizer(game.parameters())
     # in the following statement, we finally instantiate the trainer object with all the components we defined (the game, the optimizer, the data
     # and the callbacks)
-    print(opts.checkpoint_path, "opts.checkpoint_path")
-    if opts.print_validation_events == True:
-        # we add a callback that will print loss and accuracy after each training and validation pass (see ConsoleLogger in callbacks.py in core directory)
-        # if requested by the user, we will also print a detailed log of the validation pass after full training: look at PrintValidationEvents in
-        # language_analysis.py (core directory)
-        trainer = core.Trainer(
-            game=game,
-            optimizer=optimizer,
-            train_data=train_loader,
-            validation_data=test_loader,
-            callbacks=callbacks
-            + [
-                core.ConsoleLogger(print_train_loss=True, as_json=True),
-                core.PrintValidationEvents(n_epochs=opts.n_epochs),
-                core.CheckpointSaver(checkpoint_path=opts.checkpoint_path, checkpoint_freq=1, max_checkpoints=1)
-            ],
-        )
-    else:
-        trainer = core.Trainer(
-            game=game,
-            optimizer=optimizer,
-            train_data=train_loader,
-            validation_data=test_loader,
-            callbacks=callbacks
-            + [core.ConsoleLogger(print_train_loss=True, as_json=True)],
-        )
+    # we add a callback that will print loss and accuracy after each training and validation pass (see ConsoleLogger in callbacks.py in core directory)
+    # if requested by the user, we will also print a detailed log of the validation pass after full training: look at PrintValidationEvents in
+    # language_analysis.py (core directory)
+    trainer = core.Trainer(
+        game=game,
+        optimizer=optimizer,
+        train_data=data_loader,
+        validation_data=data_loader,
+        callbacks=callbacks
+        + [
+            core.ConsoleLogger(print_train_loss=True, as_json=True),
+        ],
+    )
+    # load model from check point
+    trainer.load_from_checkpoint(path=opts.checkpoint_path)
+    loss, interactions = trainer.eval()
 
-    # and finally we train!
-    trainer.train(n_epochs=opts.n_epochs)
+    ## run symbol analyses
+    # topsim
+    input_msg_topsim = round(TopographicSimilarity.compute_topsim(interactions.sender_input, interactions.message, 'hamming', 'edit'), 6)
+    print("input_msg_topsim: ", input_msg_topsim)
+    receiver_output_topsim = round(TopographicSimilarity.compute_topsim(interactions.receiver_output, interactions.message, 'hamming', 'edit'), 6)
+    print("receiver_output_topsim: ",receiver_output_topsim)
+    label_msg_topsim = round(TopographicSimilarity.compute_topsim(F.one_hot(interactions.labels), interactions.message, 'hamming', 'edit'), 6)
+    print("label_msg_topsim: ", label_msg_topsim)
 
 
 if __name__ == "__main__":
