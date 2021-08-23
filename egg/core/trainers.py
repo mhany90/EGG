@@ -317,8 +317,9 @@ class Trainer:
         Loads the game, agents, and optimizer state from a file
         :param path: Path to the file
         """
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
         print(f"# loading trainer state from {path}")
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path, map_location=device)
         self.load(checkpoint)
 
     def load_from_latest(self, path):
